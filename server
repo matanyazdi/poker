@@ -1,0 +1,297 @@
+# server
+
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- #
+
+from cryptography.fernet import Fernet
+import socket
+import random
+import sqlite3
+import threading
+import time
+
+
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- #
+
+PORT = 42069
+IP = '0.0.0.0'
+SERVER_NAME = "Matan's server"
+cards = ["2d", "2c", "2s", "2h"], ["3d", "3c", "3s", "3h"], ["4d", "4c", "4s", "4h"], ["5d", "5c", "5s", "5h"], ["6d",
+                                                                                                                 "6c",
+                                                                                                                 "6s",
+                                                                                                                 "6h"], \
+        ["7d", "7c", "7s", "7h"], ["8d", "8c", "8s", "8h"], ["9d", "9c", "9s", "h9"], ["10d", "10c", "10s", "10h"], \
+        ["jd", "jc", "js", "jh"], ["qd", "qc", "qs", "qh"], ["kd", "kc", "ks", "kh"], ["1d", "1c", "1s", "1h"]
+playersc = []
+cardspic = "cards/"
+key = b'9Xlr3cxhMZmogudoXdEhJ2v2u205r642pd3BcT0jKdM='
+test = ""
+playerlist = []
+usedcardslist = []
+
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- #
+
+def recivemessage(client, ip, port):
+    print(f"{ip}:{port} connected to the server\n")
+    while True:
+        input = recivemsg(client)
+        if input == "register":
+            test = register(client)
+            if test:
+                client.send("True".encode('UTF-8'))
+
+                continue
+            else:
+                print("error")
+        elif input == "login":
+            if login(client):
+                # print("login == true")
+                client.send("True".encode('UTF-8'))
+                playerlist.append(client)
+                game(playerlist)
+            else:
+                client.send("False".encode('UTF-8'))
+
+
+def main():
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind((IP, PORT))
+    server.listen(6)
+
+    print("SERVER RUNNING")
+    while True:
+        client, (CIP, CPORT) = server.accept()
+        thread = threading.Thread(target=recivemessage, args=(client, CIP, CPORT))
+        thread.start()
+        print(f"New connection from {CIP}:{CPORT}")
+        print(f"{threading.activeCount() - 1} are connected to the server")
+
+
+chairs = [1, 2, 3, 4, 5, 6]
+playersit = []
+
+
+def game(playerlist):
+    playercounter = 0
+    counter = 0
+    round = 0
+    cards_on_table = []
+    player_card = []
+    while round != 6:
+        if len(playerlist) >= 1:
+            for i in range(len(playerlist)):
+                print(playerlist[i])
+            for i in range(len(playerlist)):
+                time.sleep(1)
+                playerlist[i].send("startgame".encode('UTF-8'))
+                time.sleep(1)
+                playerlist[i].send((str(len(playerlist))).encode('UTF-8'))
+                time.sleep(1)
+            round += 1
+            if round == 1:
+                for i in range(len(playerlist)):
+                    playerlist[i].send("first round".encode('UTF-8'))
+                    time.sleep(1)
+                    card1 = givingcards(cards)
+                    card2 = givingcards(cards)
+                    playerlist[i].send(card1.encode('UTF-8'))
+                    time.sleep(1)
+                    playerlist[i].send(card2.encode('UTF-8'))
+                    time.sleep(1)
+                    player_card.append((card1, card2))
+                    playerlist[i].send((str(counter)).encode('UTF-8'))
+                    time.sleep(1)
+                    counter += 1
+            elif round == 2:
+                for i in range(len(playerlist)):
+                    playerlist[i].send("2nd round".encode('UTF-8'))
+                    time.sleep(1)
+                    card1 = givingcards(cards)
+                    cards_on_table.append(card1)
+                    card2 = givingcards(cards)
+                    cards_on_table.append(card2)
+                    card3 = givingcards(cards)
+                    cards_on_table.append(card3)
+                    playerlist[i].send(card1.encode('UTF-8'))
+                    time.sleep(1)
+                    playerlist[i].send(card2.encode('UTF-8'))
+                    time.sleep(1)
+                    playerlist[i].send(card3.encode('UTF-8'))
+                    time.sleep(1)
+            elif round == 3:
+                for i in range(len(playerlist)):
+                    playerlist[i].send("3rd round".encode('UTF-8'))
+                    time.sleep(1)
+                    for card in cards_on_table:
+                        playerlist[i].send(card.encode('UTF-8'))
+                        time.sleep(1)
+                    card = givingcards(cards)
+                    cards_on_table.append(card)
+                    playerlist[i].send(card.encode('UTF-8'))
+                    time.sleep(1)
+            elif round == 4:
+                for i in range(len(playerlist)):
+                    playerlist[i].send("4th round".encode('UTF-8'))
+                    time.sleep(1)
+                    for card in cards_on_table:
+                        playerlist[i].send(card.encode('UTF-8'))
+                        time.sleep(1)
+                    card = givingcards(cards)
+                    cards_on_table.append(card)
+                    playerlist[i].send(card.encode('UTF-8'))
+                    time.sleep(1)
+            elif round == 5:
+                for i in range(len(playerlist)):
+                    playerlist[i].send("5th round".encode('UTF-8'))
+                    time.sleep(1)
+            elif round == 6:
+                for j in range(len(playerlist)):
+                    playerlist[j].send("6th round".encode('UTF-8'))
+                    time.sleep(1)
+                    for i in range(len(player_card)):
+                        playerlist[j].send(player_card[i][0].encode('UTF-8'))
+                        time.sleep(1)
+                        playerlist[j].send(player_card[i][1].encode('UTF-8'))
+                        time.sleep(1)
+            count = 0
+            for i in range(len(playerlist)):
+                for j in range(len(playerlist)):
+                    if count == j:
+                        playerlist[j].send("True".encode('UTF-8'))
+                    else:
+                        playerlist[j].send("False".encode('UTF-8'))
+                bet = playerlist[count].recv(1024).decode('UTF-8')
+                for j in range(len(playerlist)):
+                    if count != j:
+                        playerlist[j].send(bet.encode('UTF-8'))
+                count += 1
+
+            # server
+            playercounter += 1
+
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- #
+
+def recivemsg(client):
+    input = ""
+    try:
+        input = client.recv(1024).decode('UTF-8')
+    except:
+        pass
+    return input
+
+
+def login(client):
+    user = recivemsg(client)
+    password = recivemsg(client)
+    print("recived all")
+    if get_user(user, password):
+        # print("get user == true")
+        return True
+    else:
+        return False
+
+
+def register(client):
+    try:
+        user = recivemsg(client)
+        # print(user)
+        password = recivemsg(client)
+        password = password.encode('UTF-8')
+        email = recivemsg(client)
+        # print("got all arg")
+        cipher_suite = Fernet(key)
+        password = cipher_suite.encrypt(password)
+        # print(cipher_suite.decrypt(password))
+        insert_user(user, password.decode('UTF-8'), email, 5000)
+        return (True)
+    except:
+        return (False)
+
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- #
+
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- #
+def draw_cards():
+    CardsSpot = {
+        0: [(592, 338), (635, 338)],
+        1: [(296, 338), (243, 338)],
+        2: [(69, 203), (114, 203)],
+        3: [(243, 69), (288, 69)],
+        4: [(592, 69), (635, 69)],
+        5: [(765, 203), (809, 203)]
+    }
+
+
+# card: Card = cards[0]
+# card_img = pygame.image.load(cardspic + card + '.png')
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- #
+
+
+def givingcards(cardslist):
+    while True:
+        num1 = random.randint(0, 3)
+        num2 = random.randint(0, 11)
+        card = (cardslist[num2][num1])
+        if card not in usedcardslist:
+            usedcardslist.append(card)
+            return (card)
+        else:
+            continue
+
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- #
+
+
+def insert_user(name, password, email, money):
+    try:
+        db = sqlite3.connect('Poker.db')
+        cursor = db.cursor()
+        print("connected")
+        sqlite_insert = """INSERT INTO users
+                          (username, password, email, money) 
+                          VALUES (?, ?, ?, ?);"""
+
+        data_tuple = (name, password, email, money)
+
+        cursor.execute(sqlite_insert, data_tuple)
+        db.commit()
+        print("data has inserted")
+        cursor.close()
+
+    except sqlite3.Error as error:
+        print("Failed to insert Python variable into sqlite table", error)
+    finally:
+        db = sqlite3.connect('Poker.db')
+        if db:
+            db.close()
+
+
+def get_user(username, password):
+    cipher_suite = Fernet(key)
+    db = sqlite3.connect('Poker.db')
+    cursor = db.cursor()
+    print("connected to the database")
+    cursor.execute("select username, password from users")
+    # print("got data")
+    unp = cursor.fetchall()
+    # print(unp)
+    pass1 = ""
+    for i in unp:
+        pass1 = i[1]
+        pass1 = cipher_suite.decrypt(pass1.encode('UTF-8'))
+        if username == i[0] and password == pass1.decode('UTF-8'):
+            print(f"{i[0]} just login to his account")
+            return True
+    return False
+
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- #
+
+
+if __name__ == '__main__':
+    main()
